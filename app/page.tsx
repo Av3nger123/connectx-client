@@ -1,6 +1,5 @@
 import { MainNav } from "@/components/main-nav";
-import { TerminalComponent } from "@/components/terminal";
-import { Terminal } from "@/components/terminal-demo";
+import { Terminal } from "@/components/terminal";
 
 export default function Home() {
 	return (

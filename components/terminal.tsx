@@ -1,74 +1,79 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { cn, runCommand } from "@/lib/utils";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
-import { Input } from "./ui/input";
-import { comma } from "postcss/lib/list";
+import { useEffect, useRef, useState } from "react";
 import { firamono } from "./fonts";
+import { cn } from "@/lib/utils";
+import { OutputItem } from "@/types";
 
-export const TerminalComponent = (props = {}) => {
-	const [terminalLines, setTerminalLines] = useState<any[]>([]);
-	const [command, setCommand] = useState<string>();
-	const [socket, setSocket] = useState<WebSocket>();
+export function Terminal() {
+	const [input, setInput] = useState<string>("");
+	const [output, setOutput] = useState<OutputItem[]>([]);
+
+	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setInput(e.target.value);
+	};
+
+	const outputRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		if (!socket) {
-			const ws = new WebSocket("ws://localhost:8080/ssh");
-
-			ws.onopen = () => {
-				setSocket(ws);
-			};
-
-			ws.onmessage = (message) => {
-				console.log(message.data);
-				const output = message.data.split(":")[1].trim();
-				setTerminalLines((prev) => [
-					...prev,
-					<TerminalOutput key={prev.length}>{output}</TerminalOutput>,
-				]);
-			};
-
-			return () => {
-				ws.close();
-			};
+		if (outputRef.current) {
+			outputRef.current.scrollTop = outputRef.current.scrollHeight;
 		}
-	}, []);
+	}, [output]);
+
+	const handleInputSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		const newOutput = [...output, { text: input, type: "input" }];
+		setOutput(newOutput);
+
+		// Simulate a response (you can replace this with actual logic)
+		const response = executeCommand(input);
+		newOutput.push({ text: response, type: "output" });
+		setOutput(newOutput);
+
+		setInput("");
+	};
+
+	const executeCommand = (command: string): string => {
+		// Simulate a response based on the command
+		return `You entered: ${command}`;
+	};
 
 	return (
 		<div
-			className={cn("container flex flex-col p-4 rounded", firamono.className)}
+			className={cn(
+				"w-full rounded-lg border flex flex-col overflow-hidden p-4 h-96",
+				firamono.className
+			)}
 		>
-			<ScrollArea className="h-[200px] min-w-screen rounded-md border p-2">
-				{terminalLines?.map((line: any) => line)}
-			</ScrollArea>
-			<Input
-				type="text"
-				autoFocus={true}
-				onKeyDown={(e) => {
-					if (e.key == "Enter") {
-						setTerminalLines([
-							...terminalLines,
-							<TerminalInput key={terminalLines.length}>
-								{command}
-							</TerminalInput>,
-						]);
-						if (socket && command) {
-							socket.send(command);
-						}
-						setCommand("");
-					}
-				}}
-				value={command}
-				onChange={(e) => setCommand(e.target.value)}
-			/>
+			<div className="flex-grow overflow-y-auto" ref={outputRef}>
+				<div className="terminal-output">
+					{output.map((item, index) => (
+						<div
+							key={`output-${index}`}
+							className={`output-${item.type} ${
+								item.type === "input" ? "" : "opacity-70"
+							}`}
+						>
+							{item.type === "input" ? "$ " : ""}
+							{item.text}
+						</div>
+					))}
+				</div>
+			</div>
+			<form
+				onSubmit={handleInputSubmit}
+				className="flex items-center mt-2 border-t border-500 pt-2 "
+			>
+				<span className="mr-2">$</span>
+				<input
+					type="text"
+					value={input}
+					onChange={handleInputChange}
+					autoFocus
+					className="bg-transparent border-none outline-none cursor-blink w-full"
+				/>
+			</form>
 		</div>
 	);
-};
-
-function TerminalInput({ children }: any) {
-	return <div>$ {children}</div>;
-}
-function TerminalOutput({ children }: any) {
-	return <div>{children}</div>;
 }
