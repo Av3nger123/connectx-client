@@ -4,10 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { firamono } from "./fonts";
 import { cn } from "@/lib/utils";
 import { OutputItem } from "@/types";
+import { comma } from "postcss/lib/list";
+import createWebSocket from "@/lib/websocket";
 
 export function Terminal() {
 	const [input, setInput] = useState<string>("");
 	const [output, setOutput] = useState<OutputItem[]>([]);
+	const [socket, setSocket] = useState<WebSocket>();
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setInput(e.target.value);
@@ -21,22 +24,36 @@ export function Terminal() {
 		}
 	}, [output]);
 
+	useEffect(() => {
+		if (!socket) {
+			const newSocket = createWebSocket((data: any) => {
+				let lines: OutputItem[] = [];
+				data.split("\n").forEach((line: string) => {
+					lines.push({ text: line, type: "output" });
+				});
+				setOutput((prev) => [...prev, ...lines]);
+			});
+			setSocket(newSocket);
+
+			// Cleanup on component unmount
+			return () => {
+				newSocket.close();
+			};
+		}
+	}, []);
+
 	const handleInputSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		const newOutput = [...output, { text: input, type: "input" }];
 		setOutput(newOutput);
-
-		// Simulate a response (you can replace this with actual logic)
-		const response = executeCommand(input);
-		newOutput.push({ text: response, type: "output" });
-		setOutput(newOutput);
-
+		executeCommand(input);
 		setInput("");
 	};
 
-	const executeCommand = (command: string): string => {
-		// Simulate a response based on the command
-		return `You entered: ${command}`;
+	const executeCommand = (command: string): void => {
+		if (socket) {
+			socket.send(command);
+		}
 	};
 
 	return (
